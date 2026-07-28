@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { RouterProvider, useRouter } from "./router";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
@@ -12,39 +12,29 @@ import { AboutPage } from "./pages/AboutPage";
 import { VerificationLogItem } from "./components/VerificationHistory";
 import {
   connectLaceWallet,
-  WalletDiagnosticState,
+  walletStateToDiagnostics,
+  WalletState,
+  INITIAL_WALLET_STATE,
   DEFAULT_CONTRACT_ADDRESS,
-  detectLaceProvider,
 } from "./wallet-service";
 
 export const MainContent: React.FC = () => {
   const { currentPath } = useRouter();
 
-  // Lace Wallet & Network State
-  const [walletConnected, setWalletConnected] = useState<boolean>(false);
-  const [walletAddress, setWalletAddress] = useState<string>("No Midnight account found in Lace");
-  const [networkName, setNetworkName] = useState<string>("Midnight Preprod");
-  const [contractAddress, setContractAddress] = useState<string>(DEFAULT_CONTRACT_ADDRESS);
-  const [verificationCount, setVerificationCount] = useState<number>(3);
+  // ── Wallet State ──────────────────────────────────────────────
+  const [walletState, setWalletState] = useState<WalletState>(INITIAL_WALLET_STATE);
+  const [contractAddress] = useState<string>(DEFAULT_CONTRACT_ADDRESS);
 
-  // Developer Diagnostics State
-  const [diagnostics, setDiagnostics] = useState<WalletDiagnosticState>({
-    providerName: "Lace Wallet",
-    providerRdns: "io.lace.wallet",
-    apiVersion: "1.0.0",
-    requestedNetwork: "preprod",
-    connectedNetwork: "Disconnected",
-    connectionStatus: "Disconnected",
-    walletAddress: "No Midnight account found in Lace",
-    contractAddress: DEFAULT_CONTRACT_ADDRESS,
-    debugPanelVisible: true,
-    steps: {
-      providerDetected: { status: false, reason: "Lace Wallet Required" },
-      providerConnected: { status: false, reason: "Waiting for wallet connection" },
-      addressRetrieved: { status: false, reason: "No account selected" },
-      contractReachable: { status: false, reason: `Midnight Preprod contract configured at ${DEFAULT_CONTRACT_ADDRESS.substring(0, 10)}...` },
-    },
-  });
+  // Derived convenience flags
+  const walletConnected = walletState.connected;
+  const walletAddress = walletState.address ?? "No Midnight account found in Lace";
+  const networkName = walletState.network ?? "Midnight Preprod";
+
+  // Derived diagnostics (for WalletDiagnostics panel)
+  const diagnostics = walletStateToDiagnostics(walletState, contractAddress);
+
+  // Verification state
+  const [verificationCount, setVerificationCount] = useState<number>(3);
 
   // Verification Logs
   const [verificationLogs, setVerificationLogs] = useState<VerificationLogItem[]>([
@@ -74,39 +64,33 @@ export const MainContent: React.FC = () => {
     },
   ]);
 
-  // Connect Lace Wallet handler using strict filtering & Preprod enforcement
-  const handleConnectWallet = async () => {
-    const res = await connectLaceWallet(contractAddress);
-    setDiagnostics(res.diagnostics);
-    if (res.success) {
-      setWalletAddress(res.address);
-      setNetworkName(res.network);
-      setWalletConnected(true);
-    } else {
-      setWalletConnected(false);
-      setWalletAddress(res.address);
+  // ── Connect Lace Wallet ─────────────────────────────────────────
+  const handleConnectWallet = useCallback(async () => {
+    // Guard: do not allow concurrent connections
+    if (walletState.connecting) {
+      console.log("[Wallet] connection already in progress — ignoring");
+      return;
     }
-  };
-
-  const handleRefreshDiagnostics = async () => {
-    const res = await connectLaceWallet(contractAddress);
-    setDiagnostics(res.diagnostics);
-  };
-
-  // Check Lace provider on mount if window is available
-  useEffect(() => {
-    const provider = detectLaceProvider();
-    if (!provider) {
-      // If Lace is not installed in actual browser, set diagnostic alert
-      setDiagnostics((prev) => ({
-        ...prev,
-        steps: {
-          ...prev.steps,
-          providerDetected: { status: false, reason: "Lace Wallet Required" },
-        },
-      }));
+    // Guard: already connected — do nothing
+    if (walletState.connected) {
+      console.log("[Wallet] already connected");
+      return;
     }
-  }, []);
+
+    // Set connecting state
+    setWalletState((prev) => ({ ...prev, status: "connecting", connecting: true, error: null }));
+
+    const result = await connectLaceWallet();
+    setWalletState(result.state);
+  }, [walletState.connecting, walletState.connected]);
+
+  // ── Re-run Diagnostics (does NOT trigger a new wallet connect) ────
+  const handleRefreshDiagnostics = useCallback(async () => {
+    // Refresh only runs a new connection if currently disconnected
+    if (walletState.connected) return;
+    const result = await connectLaceWallet();
+    setWalletState(result.state);
+  }, [walletState.connected]);
 
   // Proof Execution Handler
   const handleExecuteProof = async (
@@ -215,6 +199,8 @@ export const MainContent: React.FC = () => {
         walletAddress={walletAddress}
         onConnectWallet={handleConnectWallet}
         networkName={networkName}
+        walletConnecting={walletState.connecting}
+        walletError={walletState.error}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">

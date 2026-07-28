@@ -48,15 +48,15 @@ describe("Private Salary Verification - Compact Contract & Config", () => {
 
 describe("Lace Wallet Integration & Preprod Network Hardening", () => {
   beforeEach(() => {
-    resetWalletSession();
+    resetWalletSession(); // no-op, kept for compatibility
   });
-  it("should reject random providers and select ONLY Lace provider", () => {
-    // Mock window.midnight with multiple providers
+
+  it("should reject random providers and select ONLY Lace provider by rdns", () => {
     const mockWindow = {
       midnight: {
         randomWallet: { name: "random-wallet", rdns: "com.random.wallet" },
         metamaskFake: { name: "metamask", rdns: "io.metamask" },
-        lace: { name: "lace", rdns: "io.lace.wallet", enable: async () => ({}) },
+        lace: { name: "lace", rdns: "io.lace.wallet", connect: async () => ({}) },
       },
     };
 
@@ -68,7 +68,7 @@ describe("Lace Wallet Integration & Preprod Network Hardening", () => {
     expect(provider.name).toBe("lace");
   });
 
-  it("should return Lace Wallet Required when window.midnight contains no Lace provider", () => {
+  it("should return null when window.midnight contains no Lace provider", () => {
     const mockWindow = {
       midnight: {
         otherWallet: { name: "other", rdns: "com.other.wallet" },
@@ -81,15 +81,13 @@ describe("Lace Wallet Integration & Preprod Network Hardening", () => {
     expect(provider).toBeNull();
   });
 
-  it("should fallback to explicit message 'No Midnight account found in Lace' when address is empty", async () => {
+  it("should return error state with address-not-found when getUnshieldedAddress returns empty string", async () => {
     const mockWindow = {
       midnight: {
         lace: {
           name: "lace",
           rdns: "io.lace.wallet",
-          connect: async (net: string) => ({
-            getConnectionStatus: async () => "connected",
-            network: async () => net,
+          connect: async (_net: string) => ({
             getUnshieldedAddress: async () => ({ unshieldedAddress: "" }),
           }),
         },
@@ -98,22 +96,22 @@ describe("Lace Wallet Integration & Preprod Network Hardening", () => {
 
     (globalThis as any).window = mockWindow;
 
-    const res = await connectLaceWallet("test-contract-addr");
+    const res = await connectLaceWallet();
     expect(res.success).toBe(false);
-    expect(res.address).toBe("No Midnight account found in Lace");
-    expect(res.diagnostics.steps.addressRetrieved.reason).toBe("No Midnight account found in Lace");
+    expect(res.state.connected).toBe(false);
+    expect(res.state.status).toBe("error");
+    expect(res.state.address).toBeNull();
+    expect(res.state.error).toBeTruthy();
   });
 
-  it("should successfully validate preprod connection when valid account is returned", async () => {
-    const validAddr = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  it("should successfully connect and extract address from result.unshieldedAddress", async () => {
+    const validAddr = "mn_addr_preprod1ruqqkymd9gn0j8t2pa6ef4amhh59ass8xspd9yxzhthycygmuftqf79naa";
     const mockWindow = {
       midnight: {
         lace: {
           name: "lace",
           rdns: "io.lace.wallet",
-          connect: async (net: string) => ({
-            getConnectionStatus: async () => "connected",
-            network: async () => net,
+          connect: async (_net: string) => ({
             getUnshieldedAddress: async () => ({ unshieldedAddress: validAddr }),
           }),
         },
@@ -122,11 +120,67 @@ describe("Lace Wallet Integration & Preprod Network Hardening", () => {
 
     (globalThis as any).window = mockWindow;
 
-    const res = await connectLaceWallet("test-contract-addr");
+    const res = await connectLaceWallet();
     expect(res.success).toBe(true);
-    expect(res.address).toBe(validAddr);
-    expect(res.network).toBe("Midnight Preprod (preprod)");
-    expect(res.diagnostics.steps.providerConnected.status).toBe(true);
+    expect(res.state.connected).toBe(true);
+    expect(res.state.status).toBe("connected");
+    expect(res.state.address).toBe(validAddr);
+    expect(res.state.provider).toBe("lace");
+    expect(res.state.network).toBe("Midnight Preprod (preprod)");
+  });
+
+  it("should surface user-friendly error when wallet is locked", async () => {
+    const mockWindow = {
+      midnight: {
+        lace: {
+          name: "lace",
+          rdns: "io.lace.wallet",
+          connect: async (_net: string) => ({
+            getUnshieldedAddress: async () => {
+              throw new Error("Wallet is locked. Please unlock the wallet first.");
+            },
+          }),
+        },
+      },
+    };
+
+    (globalThis as any).window = mockWindow;
+
+    const res = await connectLaceWallet();
+    expect(res.success).toBe(false);
+    expect(res.state.status).toBe("error");
+    expect(res.state.error).toMatch(/unlock/i);
+  });
+
+  it("should surface user-friendly error when Lace is not detected", async () => {
+    (globalThis as any).window = { midnight: {} };
+
+    const res = await connectLaceWallet();
+    expect(res.success).toBe(false);
+    expect(res.state.status).toBe("error");
+    expect(res.state.error).toMatch(/not found|install/i);
+  });
+
+  it("should surface user-friendly error when API is shutdown", async () => {
+    const mockWindow = {
+      midnight: {
+        lace: {
+          name: "lace",
+          rdns: "io.lace.wallet",
+          connect: async (_net: string) => ({
+            getUnshieldedAddress: async () => {
+              throw new Error("Remote API with channel 'midnight-wallet' was shutdown: object can no longer be used.");
+            },
+          }),
+        },
+      },
+    };
+
+    (globalThis as any).window = mockWindow;
+
+    const res = await connectLaceWallet();
+    expect(res.success).toBe(false);
+    expect(res.state.status).toBe("error");
+    expect(res.state.error).toMatch(/reset|connect again/i);
   });
 });
-

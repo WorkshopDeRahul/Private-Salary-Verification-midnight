@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { Link, useRouter } from "../router";
-import { Shield, Lock, Wallet, CheckCircle, Menu, X, ChevronRight, Activity } from "lucide-react";
+import { Shield, Lock, Wallet, CheckCircle, Loader2, AlertCircle, Menu, X, ChevronRight, Activity } from "lucide-react";
 
 interface NavbarProps {
   walletConnected: boolean;
   walletAddress: string;
   onConnectWallet: () => void;
   networkName: string;
+  walletConnecting?: boolean;
+  walletError?: string | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -14,6 +16,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   walletAddress,
   onConnectWallet,
   networkName,
+  walletConnecting = false,
+  walletError = null,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currentPath } = useRouter();
@@ -26,6 +30,63 @@ export const Navbar: React.FC<NavbarProps> = ({
     { path: "/privacy", label: "Privacy" },
     { path: "/about", label: "About" },
   ];
+
+  // ── Button styles & content by state ────────────────────────────
+
+  const buttonClass = (() => {
+    if (walletConnected)
+      return "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 cursor-default";
+    if (walletConnecting)
+      return "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm bg-slate-100 border border-slate-300 text-slate-500 cursor-not-allowed";
+    if (walletError)
+      return "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm bg-rose-50 border border-rose-300 text-rose-700 hover:bg-rose-100";
+    return "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm bg-gradient-to-r from-[#6D5DF6] via-purple-600 to-indigo-600 text-white hover:opacity-95 shadow-purple-500/20";
+  })();
+
+  const buttonContent = (() => {
+    // STATE 3 — CONNECTED
+    if (walletConnected) {
+      const short =
+        walletAddress.length > 20
+          ? `${walletAddress.substring(0, 14)}...${walletAddress.substring(walletAddress.length - 6)}`
+          : walletAddress;
+      return (
+        <>
+          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span className="font-bold text-emerald-800">Lace Connected:</span>
+          <span className="font-mono text-emerald-700">{short}</span>
+        </>
+      );
+    }
+
+    // STATE 2 — CONNECTING
+    if (walletConnecting) {
+      return (
+        <>
+          <Loader2 className="w-4 h-4 text-slate-500 animate-spin shrink-0" />
+          <span>Connecting...</span>
+        </>
+      );
+    }
+
+    // STATE 4 — ERROR
+    if (walletError) {
+      return (
+        <>
+          <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+          <span>Retry Connection</span>
+        </>
+      );
+    }
+
+    // STATE 1 — DISCONNECTED
+    return (
+      <>
+        <Wallet className="w-4 h-4 text-purple-100 shrink-0" />
+        <span>Connect Lace Wallet</span>
+      </>
+    );
+  })();
 
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
@@ -77,31 +138,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-semibold">{networkName}</span>
             </div>
 
-            {/* Lace Wallet Button */}
+            {/* Wallet Button — all 4 states */}
             <button
-              onClick={onConnectWallet}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                walletConnected
-                  ? "bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100"
-                  : "bg-gradient-to-r from-[#6D5DF6] via-purple-600 to-indigo-600 text-white hover:opacity-95 shadow-purple-500/20"
-              }`}
+              id="connect-wallet-btn"
+              onClick={walletConnected || walletConnecting ? undefined : onConnectWallet}
+              disabled={walletConnecting}
+              className={buttonClass}
             >
-              {walletConnected ? (
-                <>
-                  <CheckCircle className="w-4 h-4 text-emerald-600" />
-                  <span className="font-bold text-emerald-800">Lace Connected:</span>
-                  <span className="font-mono text-emerald-700">
-                    {walletAddress.length > 20
-                      ? `${walletAddress.substring(0, 14)}...${walletAddress.substring(walletAddress.length - 6)}`
-                      : walletAddress}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Wallet className="w-4 h-4 text-purple-100" />
-                  <span>Connect Lace Wallet</span>
-                </>
-              )}
+              {buttonContent}
             </button>
           </div>
 
@@ -116,6 +160,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Error bar — shown when there's a wallet error */}
+      {walletError && !walletConnected && (
+        <div className="bg-rose-50 border-b border-rose-200 px-4 py-2 flex items-center gap-2 text-xs text-rose-700 font-medium">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span>{walletError}</span>
+        </div>
+      )}
+
+      {/* Connected address bar — shown when connected */}
+      {walletConnected && walletAddress && (
+        <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-1.5 flex items-center gap-2 text-xs text-emerald-700 font-mono">
+          <CheckCircle className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+          <span className="font-semibold">Connected to Lace Wallet</span>
+          <span className="mx-1 text-emerald-400">·</span>
+          <span>Address:</span>
+          <span className="font-bold">{walletAddress}</span>
+        </div>
+      )}
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
@@ -148,16 +211,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             <button
-              onClick={onConnectWallet}
+              onClick={walletConnected || walletConnecting ? undefined : onConnectWallet}
+              disabled={walletConnecting}
               className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold ${
                 walletConnected
                   ? "bg-emerald-50 border border-emerald-300 text-emerald-700"
+                  : walletConnecting
+                  ? "bg-slate-100 border border-slate-300 text-slate-500"
                   : "bg-gradient-to-r from-[#6D5DF6] to-purple-600 text-white"
               }`}
             >
               <Wallet className="w-4 h-4" />
-              <span>{walletConnected ? "Wallet Connected" : "Connect Lace Wallet"}</span>
+              <span>
+                {walletConnected
+                  ? "Wallet Connected"
+                  : walletConnecting
+                  ? "Connecting..."
+                  : "Connect Lace Wallet"}
+              </span>
             </button>
+
+            {/* Mobile error */}
+            {walletError && !walletConnected && (
+              <p className="text-xs text-rose-600 px-1 font-medium">{walletError}</p>
+            )}
           </div>
         </div>
       )}
