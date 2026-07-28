@@ -161,33 +161,28 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
   diag.connectedNetwork = "Midnight Preprod (preprod)";
   diag.steps.providerConnected = { status: true, reason: "Connected to Midnight Preprod Network" };
 
-  // 3. Retrieve unshielded address immediately
-  let addressResult: any = null;
+  // 3. Retrieve unshielded address from Midnight API (result.unshieldedAddress)
+  let result: any = null;
+  let address = "";
   try {
     if (typeof api.getUnshieldedAddress === "function") {
-      addressResult = await api.getUnshieldedAddress();
-      console.log("[Wallet] getUnshieldedAddress success", addressResult);
-    } else if (typeof api.state === "function") {
-      const state = await api.state();
-      addressResult = state?.address || state?.activeAccount?.address || "";
-      console.log("[Wallet] api.state success", addressResult);
-    } else if (typeof api.getAccount === "function") {
-      const acc = await api.getAccount();
-      addressResult = typeof acc === "string" ? acc : acc?.address || "";
-      console.log("[Wallet] api.getAccount success", addressResult);
-    } else if (api.address) {
-      addressResult = api.address;
-      console.log("[Wallet] api.address success", addressResult);
+      result = await api.getUnshieldedAddress();
+    } else {
+      result = await api.getUnshieldedAddress();
     }
+    
+    console.log("address result", result);
+    console.log("address string", result?.unshieldedAddress);
+
+    address = result?.unshieldedAddress || (typeof result === "string" ? result : "");
   } catch (error) {
     console.error("[Wallet Error] address retrieval error", error);
   }
 
-  const address = addressResult?.unshieldedAddress || addressResult?.address || (typeof addressResult === "string" ? addressResult : "");
   console.log("[Wallet] address value", address);
 
   if (!address || address.trim() === "" || address === "None") {
-    console.error("[Wallet Error] Valid address not found in Lace account response");
+    console.error("[Wallet Error] Valid unshieldedAddress not found in Lace account response");
     diag.connectionStatus = "Error";
     diag.walletAddress = "No Midnight account found in Lace";
     diag.errorMessage = "No Midnight account found in Lace wallet.";
@@ -197,7 +192,7 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
 
   // Address retrieval succeeded! Update state with primitive values.
   diag.walletAddress = address;
-  diag.steps.addressRetrieved = { status: true, reason: `Active unshielded address retrieved: ${address.substring(0, 10)}...` };
+  diag.steps.addressRetrieved = { status: true, reason: `Active unshielded address retrieved: ${address.substring(0, 16)}...` };
   diag.steps.contractReachable = { status: true, reason: `Midnight Preprod contract verified at ${contractAddr.substring(0, 10)}...` };
   diag.connectionStatus = "Connected";
 

@@ -91,7 +91,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <CheckCircle className="w-4 h-4 text-emerald-600" />
                   <span className="font-bold text-emerald-800">Lace Connected:</span>
                   <span className="font-mono text-emerald-700">
-                    {walletAddress.substring(0, 6)}...{walletAddress.substring(walletAddress.length - 4)}
+                    {walletAddress.length > 20
+                      ? `${walletAddress.substring(0, 14)}...${walletAddress.substring(walletAddress.length - 6)}`
+                      : walletAddress}
                   </span>
                 </>
               ) : (
