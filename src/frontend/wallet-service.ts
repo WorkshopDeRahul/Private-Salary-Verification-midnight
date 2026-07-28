@@ -1,7 +1,7 @@
 /**
  * Wallet Service — Midnight Preprod & Strict Lace Wallet Integration
  * 
- * Performs immediate unshieldedAddress extraction after connect() succeeds to avoid stale proxy/locked errors.
+ * Manages single active API instance and prevents duplicate connect() calls / stale channel errors.
  */
 
 export interface WalletDiagnosticState {
@@ -24,6 +24,10 @@ export interface WalletDiagnosticState {
 }
 
 export const DEFAULT_CONTRACT_ADDRESS = "444f33167a85a49ed3a197e2944742463bca0a98364570caa8f116c13cb91954";
+
+// Persistent API instance and connection mutex to prevent duplicate connect() calls
+let activeApiInstance: any = null;
+let pendingConnectPromise: Promise<any> | null = null;
 
 /**
  * Filter window.midnight object to strictly select ONLY Lace Wallet provider.
@@ -50,7 +54,7 @@ export function detectLaceProvider(): any | null {
 
 /**
  * Connect exclusively to Lace Wallet on Midnight Preprod network.
- * Immediately calls api.getUnshieldedAddress() right after connect() succeeds.
+ * Uses persistent single api instance and immediately extracts result.unshieldedAddress.
  */
 export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_ADDRESS): Promise<{
   success: boolean;
@@ -102,14 +106,39 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
 
   try {
     console.log("[Wallet] connect started");
-    if (typeof laceProvider.connect === "function") {
-      api = await laceProvider.connect(targetNetwork);
-    } else if (typeof laceProvider.enable === "function") {
-      api = await laceProvider.enable();
+    
+    // Reuse existing active API if valid, or await in-flight connection promise
+    if (activeApiInstance) {
+      api = activeApiInstance;
+      console.log("api instance (cached)", api);
+    } else if (pendingConnectPromise) {
+      api = await pendingConnectPromise;
+      console.log("api instance (awaiting in-flight)", api);
+    } else {
+      pendingConnectPromise = (async () => {
+        if (typeof laceProvider.connect === "function") {
+          return await laceProvider.connect(targetNetwork);
+        } else if (typeof laceProvider.enable === "function") {
+          return await laceProvider.enable();
+        }
+        throw new Error("Provider has no connect or enable method");
+      })();
+
+      api = await pendingConnectPromise;
+      pendingConnectPromise = null;
+      activeApiInstance = api;
+      console.log("api instance (new connection)", api);
     }
+
     console.log("[Wallet] connect success");
-  } catch (error) {
+    console.log("api instance", api);
+  } catch (error: any) {
+    pendingConnectPromise = null;
+    activeApiInstance = null;
     console.error("[Wallet Error] connect failed", error);
+    if (error instanceof Error && error.stack) {
+      console.error("[Wallet Error Stack]", error.stack);
+    }
     const errMsg = error instanceof Error ? error.message : String(error);
     diag.connectionStatus = "Error";
     diag.errorMessage = `Lace Wallet connection failed: ${errMsg}`;
@@ -125,19 +154,26 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
     return { success: false, address: diag.walletAddress, network: "Disconnected", diagnostics: diag };
   }
 
-  // Immediately retrieve unshieldedAddress after connect() succeeds
+  // IMMEDIATELY after connect: call getUnshieldedAddress()
   let addressResult: any = null;
   try {
     if (typeof api.getUnshieldedAddress === "function") {
       addressResult = await api.getUnshieldedAddress();
     }
+    console.log("raw getUnshieldedAddress result", addressResult);
     console.log("raw address result", addressResult);
     console.log("address result", addressResult);
     console.log("address string", addressResult?.unshieldedAddress);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Wallet Error] address retrieval error", error);
+    if (error instanceof Error && error.stack) {
+      console.error("[Wallet Error Stack]", error.stack);
+    }
+    // If API instance threw channel shutdown or lock error, invalidate cached instance so retry reconnects
+    activeApiInstance = null;
   }
 
+  // Strictly extract unshieldedAddress
   const address = addressResult?.unshieldedAddress;
   console.log("[Wallet] address value", address);
 
@@ -150,7 +186,7 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
     return { success: false, address: diag.walletAddress, network: diag.connectedNetwork, diagnostics: diag };
   }
 
-  // Network check
+  // Network check (optional informational call)
   let actualNetwork = targetNetwork;
   try {
     if (typeof api.network === "function") {
@@ -159,8 +195,11 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
       actualNetwork = api.network;
     }
     console.log("[Wallet] network value", actualNetwork);
-  } catch (error) {
+  } catch (error: any) {
     console.log("[Wallet] network check optional info", error);
+    if (error instanceof Error && error.stack) {
+      console.log("[Wallet Network Stack]", error.stack);
+    }
   }
 
   const invalidNetworks = ["undeployed", "devnet", "local", "mainnet", "testnet", "preview", "unknown"];
@@ -187,4 +226,12 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
     network: diag.connectedNetwork,
     diagnostics: diag,
   };
+}
+
+/**
+ * Helper to reset cached API instance if explicit disconnect is requested.
+ */
+export function resetWalletSession(): void {
+  activeApiInstance = null;
+  pendingConnectPromise = null;
 }

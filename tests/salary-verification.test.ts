@@ -1,11 +1,8 @@
-/**
- * Private Salary Verification - Unit Tests & Compliance Hardening Tests
- */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { detectLaceProvider, connectLaceWallet } from "../src/frontend/wallet-service.js";
+import { detectLaceProvider, connectLaceWallet, resetWalletSession } from "../src/frontend/wallet-service.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const contractDir = path.resolve(__dirname, "..", "contracts", "managed", "private-salary-verification");
@@ -50,6 +47,9 @@ describe("Private Salary Verification - Compact Contract & Config", () => {
 });
 
 describe("Lace Wallet Integration & Preprod Network Hardening", () => {
+  beforeEach(() => {
+    resetWalletSession();
+  });
   it("should reject random providers and select ONLY Lace provider", () => {
     // Mock window.midnight with multiple providers
     const mockWindow = {
