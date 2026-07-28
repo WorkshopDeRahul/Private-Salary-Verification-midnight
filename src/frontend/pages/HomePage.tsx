@@ -423,7 +423,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <span className="text-xs font-mono font-bold text-purple-400 uppercase tracking-wider">
               Network Telemetry
             </span>
-            <h3 className="text-2xl font-extrabold text-white mt-1">Live Devnet Metrics</h3>
+            <h3 className="text-2xl font-extrabold text-white mt-1">Live Preprod Metrics</h3>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-xs font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />

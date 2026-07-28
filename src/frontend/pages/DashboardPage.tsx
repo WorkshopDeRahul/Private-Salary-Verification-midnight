@@ -1,18 +1,24 @@
 import React from "react";
 import { StatCard } from "../components/StatCard";
+import { WalletDiagnostics } from "../components/WalletDiagnostics";
+import { WalletDiagnosticState } from "../wallet-service";
 import { Link } from "../router";
-import { ShieldCheck, CheckCircle2, Award, Activity, ArrowRight, Cpu, Lock, FileText, Landmark } from "lucide-react";
+import { ShieldCheck, CheckCircle2, Award, Activity, ArrowRight, Cpu, FileText } from "lucide-react";
 
 interface DashboardPageProps {
   verificationCount: number;
   contractAddress: string;
   networkName: string;
+  diagnostics?: WalletDiagnosticState;
+  onRefreshDiagnostics?: () => void;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
   verificationCount,
   contractAddress,
   networkName,
+  diagnostics,
+  onRefreshDiagnostics,
 }) => {
   const recentActivities = [
     {
@@ -98,11 +104,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           title="Midnight Network"
           value={networkName}
           icon={<Activity className="w-5 h-5 text-teal-600" />}
-          subtitle="Docker devnet operational"
+          subtitle="Preprod network active"
           badge="Online"
           badgeType="emerald"
         />
       </div>
+
+      {/* Wallet Diagnostics Panel */}
+      {diagnostics && onRefreshDiagnostics && (
+        <WalletDiagnostics
+          diagnostics={diagnostics}
+          onRefreshDiagnostics={onRefreshDiagnostics}
+        />
+      )}
 
       {/* Contract Info & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -157,12 +171,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <span className="text-purple-700 font-bold break-all">{contractAddress}</span>
               </div>
               <div className="pt-2 border-t border-slate-200 flex justify-between text-slate-600 text-[11px]">
-                <span>Compiler Engine:</span>
-                <span className="text-slate-900 font-bold">Compact 0.31.1</span>
+                <span>Target Network:</span>
+                <span className="text-emerald-700 font-bold">preprod</span>
               </div>
               <div className="flex justify-between text-slate-600 text-[11px]">
-                <span>Proof Server:</span>
-                <span className="text-emerald-700 font-bold">localhost:6300</span>
+                <span>Compiler Engine:</span>
+                <span className="text-slate-900 font-bold">Compact 0.31.1</span>
               </div>
             </div>
           </div>
@@ -181,3 +195,4 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     </div>
   );
 };
+

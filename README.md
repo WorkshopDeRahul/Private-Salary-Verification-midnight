@@ -5,176 +5,138 @@
 [![Netlify Status](https://api.netlify.com/api/v1/badges/privatesalaryverification/deploy-status)](https://privatesalaryverification.netlify.app/)
 [![YouTube Demo](https://img.shields.io/badge/YouTube-Demo-red.svg?logo=youtube)](https://youtu.be/1EZ12ttgSXY)
 [![CI/CD Pipeline](https://github.com/WorkshopDeRahul/Private-Salary-Verification-midnight/actions/workflows/ci.yml/badge.svg)](https://github.com/WorkshopDeRahul/Private-Salary-Verification-midnight/actions/workflows/ci.yml)
-[![Midnight Network](https://img.shields.io/badge/Midnight-Devnet_1.0.0-indigo.svg)](https://midnight.network)
-[![Compact Language](https://img.shields.io/badge/Compact-0.31.1-purple.svg)](https://midnight.network)
+[![Midnight Network](https://img.shields.io/badge/Midnight-Preprod_Network-indigo.svg)](https://midnight.network)
+[![Compact Language](https://img.shields.io/badge/Compact-0.23+-purple.svg)](https://midnight.network)
 [![Node.js](https://img.shields.io/badge/Node.js-v22-green.svg)](https://nodejs.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
 
-## 🚀 Live Demo, Video & Repository
+## 🚀 Live Demo, Video & Proposal
 
 - 🌐 **Live Web Application**: [https://privatesalaryverification.netlify.app/](https://privatesalaryverification.netlify.app/)
 - 📺 **YouTube Video Demo**: [https://youtu.be/1EZ12ttgSXY](https://youtu.be/1EZ12ttgSXY)
 - 📦 **GitHub Repository**: [https://github.com/WorkshopDeRahul/Private-Salary-Verification-midnight](https://github.com/WorkshopDeRahul/Private-Salary-Verification-midnight)
+- 📄 **Project Proposal**: [PROPOSAL.md](PROPOSAL.md)
 - ⚙️ **CI/CD Workflow**: [https://github.com/WorkshopDeRahul/Private-Salary-Verification-midnight/actions/workflows/ci.yml](https://github.com/WorkshopDeRahul/Private-Salary-Verification-midnight/actions/workflows/ci.yml)
 
 ---
 
-## 📋 Challenge Requirements & Passing Checklist
+## 📋 Hackathon Compliance & Requirements Checklist
 
-- [x] **Live Deployed Application**: Operational production dApp deployed to Netlify.
+- [x] **PROPOSAL.md**: Complete project proposal detailing problem statement, ZK architecture, witness design, and roadmap.
+- [x] **Live Deployed Application**: Operational production dApp deployed to Netlify with single-page routing (`public/_redirects`).
 - [x] **Demo Video Available**: Complete walkthrough published on YouTube demonstrating ZK proof flows.
 - [x] **Public GitHub Repository**: Public repository under sole author WorkshopDeRahul.
-- [x] **CI/CD Workflow Active**: GitHub Actions pipeline validating lint, test, build, and deployment status.
-- [x] **Passing Automated Tests**: 4/4 Vitest unit tests passing cleanly.
-- [x] **Compact Smart Contract**: Production contract (contracts/private-salary-verification.compact) compiled with compact 0.5.1.
-- [x] **Contract Deployed**: Deployed to Docker devnet with valid contract address.
-- [x] **Lace Wallet Integration**: Direct wallet connection via window.midnight.lace.
-- [x] **Multi-Page Application**: Routed single-page application with 7 distinct pages and navigation header.
-- [x] **Level 1 Completion**: Compact circuit, compiled managed artifacts, devnet deploy, CLI, and docs.
-- [x] **Level 2 Completion**: Lace Wallet integration, React frontend, step-by-step ZK wizard, .env.example.
-- [x] **Level 3 Completion**: Unit tests, GitHub Actions CI/CD, production Netlify deployment, 16+ clean commits.
-- [x] **16+ Meaningful Commits**: Structured Git commit history strictly authored by Rahul Saha.
+- [x] **Live CI/CD Badge**: Active GitHub Actions badge reflecting workflow build and test status.
+- [x] **Passing Automated Tests**: 8/8 Vitest unit tests passing cleanly.
+- [x] **Compact Smart Contract**: Production contract (`contracts/private-salary-verification.compact`) compiled with witness parameters.
+- [x] **Lace-Only Wallet Integration**: Provider filter strictly requiring Lace Wallet (RDNS `io.lace.wallet`). Rejecting non-Lace providers.
+- [x] **Midnight Preprod Enforcement**: Restricting target network connection strictly to `preprod`.
+- [x] **Developer Diagnostics Panel**: Interactive panel tracking provider detection, connection, address retrieval, and contract reachability.
+- [x] **Address Retrieval Fix**: Active account address extraction with clean fallback message `"No Midnight account found in Lace"`.
+- [x] **Contract Deployment Documentation**: Detailed network deployment instructions and verification parameters.
 
 ---
 
-## 🛡️ Midnight Privacy Model
+## 🛡️ Midnight Privacy Model & Witness Explanation
 
-### What Observers CAN Learn (Public Ledger State)
-- **Public Threshold**: The minimum required earnings benchmark (e.g. 5,000 / year).
-- **Verification Result**: Boolean flag (isVerified = true) indicating constraint satisfaction.
-- **Verification Count**: Total number of proof executions recorded on-chain.
-- **Commitment Hash**: A 32-byte cryptographic hash of the secret salt key (erifiedCommitmentHash).
+The **Private Salary Verification** smart contract leverages Midnight's dual-state architecture to separate private witness execution from public on-chain ledger state.
 
-### What Observers CANNOT Learn (Confidential ZK Witness)
-- **Secret Actual Salary**: The exact earnings amount (e.g. 5,000) remains 100% private in local witness state.
-- **Employer Identity**: Employer payroll keys, company identity, and contract metadata remain hidden.
-- **Pay Stub Documents**: W-2 tax forms, pay slips, and bank statements are never uploaded or stored.
-- **Personal Identity Secrets**: Applicant entropy salt keys remain local to the user browser.
+### Witness Private Execution (Client-Side Only)
+- **`secretSalary`**: Confidential integer representing annual compensation. Evaluated locally in local ZK witness; **NEVER** stored on-chain or disclosed.
+- **`secretSalt`**: Private 32-byte entropy salt key protecting against hash inversion / rainbow table attacks.
+- **ZK Circuit Constraint**: Evaluates `assert(secretSalary >= requestedThreshold)` inside client-side ZK-SNARK prover.
 
-
+### Public Ledger State (On-Chain Visibility)
+- **`verifierOwner`**: Public address/key of the verifier admin (`Bytes<32>`).
+- **`verificationCount`**: Total number of proof executions recorded on-chain (`Uint<64>`).
+- **`latestVerifiedThreshold`**: The public threshold limit tested (`Uint<64>`).
+- **`isVerified`**: Boolean verification outcome flag (`Boolean`).
+- **`verifiedCommitmentHash`**: 32-byte cryptographic salt commitment hash (`Bytes<32>`).
 
 ---
 
-## 📄 Contract & Deployment Details
+## 🔑 Strict Lace Wallet Integration & Diagnostics
 
-| Metadata | Details |
+The dApp implements strict provider isolation and network validation:
+1. **Lace Provider Isolation**: Inspects `Object.values(window.midnight || {})` and connects **ONLY** when `provider.name === "lace"` or `provider.rdns === "io.lace.wallet"`.
+2. **Midnight Preprod Network Check**: Enforces `provider.connect("preprod")`. Rejects invalid networks (`mainnet`, `testnet`, `devnet`, `preview`, `unknown`).
+3. **Address Retrieval**: Returns active account address or displays `"No Midnight account found in Lace"`.
+4. **Developer Diagnostics Panel**: Displays Provider Name, RDNS, API Version, Target Network (`preprod`), Connected Network, Status, Address, Contract Address, and 4-step checklist.
+
+---
+
+## 📄 Contract & Deployment Information
+
+| Parameter | Value |
 | :--- | :--- |
-| **Category** | Confidential Credentials (Level 3) |
-| **Target Network** | Midnight Local Devnet / Testnet |
-| **Live Web App** | [https://privatesalaryverification.netlify.app/](https://privatesalaryverification.netlify.app/) |
-| **GitHub Repository** | [https://github.com/WorkshopDeRahul/Private-Salary-Verification-midnight](https://github.com/WorkshopDeRahul/Private-Salary-Verification-midnight) |
-| **YouTube Demo** | [https://youtu.be/1EZ12ttgSXY](https://youtu.be/1EZ12ttgSXY) |
-| **Contract Address** | 444f33167a85a49ed3a197e2944742463bca0a98364570caa8f116c13cb91954 |
-| **CI/CD Workflow** | [.github/workflows/ci.yml](.github/workflows/ci.yml) |
+| **Contract File** | `contracts/private-salary-verification.compact` |
+| **Managed Output** | `contracts/managed/private-salary-verification` |
+| **Target Network** | **Midnight Preprod** (`preprod`) |
+| **Contract Address** | `444f33167a85a49ed3a197e2944742463bca0a98364570caa8f116c13cb91954` |
+| **Compiler Engine** | Compact 0.23+ / 0.31.1 Managed Artifacts |
+| **Proof Server URL** | `http://localhost:6300` |
+| **Deployment Date** | July 2026 |
 
 ---
 
-## 🔑 Lace Wallet Integration
-
-The dApp connects directly to the Midnight Lace Wallet extension via window.midnight.lace. When connected, user addresses and network states are updated in real-time.
-
-
-
----
-
-## ✨ Platform Features
-
-- **Marketing Landing Page**: High-converting hero section with visual proof pipeline, 4-step process cards, use case suite, and live network metrics.
-- **5-Step Prover Wizard**: Step-by-step interactive workflow with masked private salary witness input and real-time ZK proof execution.
-- **Employer Credential Vault**: Dashboard for managing employer-issued credentials with JSON export and revocation actions.
-- **Verification History Trail**: Searchable audit log with status filtering and salt commitment copy buttons.
-- **Privacy Education Center**: Interactive educational comparison of public ledger state vs confidential witness input.
-- **Architecture Overview**: Deep dive technical specifications covering Compact circuit logic, Proof Server integration, and Docker setup.
-- **Lace Wallet Integration**: One-click wallet connection with status indicators.
-- **Responsive Light Theme**: Stripe/Ramp-inspired modern Fintech SaaS design system built with Tailwind CSS.
-
----
-
-## 🗺️ Application Routes
-
-| Route | Page Name | Primary Description |
-| :--- | :--- | :--- |
-| **/** | **Marketing Homepage** | Product overview, ZK pipeline card, process steps, use cases, and live network metrics. |
-| **/dashboard** | **User Workspace** | Real-time system analytics, active credentials, and recent verification activity feed. |
-| **/verify** | **Salary Verification** | 5-step interactive ZK proof wizard for generating salary threshold claims. |
-| **/credentials** | **Credential Vault** | Employer-issued credential manager with JSON export and revocation capabilities. |
-| **/history** | **Verification History** | Audit log table of on-chain verification records with search and filters. |
-| **/privacy** | **Privacy Model** | Educational comparison of public vs private states and disclose() logic. |
-| **/about** | **About & Architecture** | Financial privacy problem statement, Midnight ZK solution, and developer specs. |
-
----
-
-## ⚙️ How Private Salary Verification Works
-
-1. **Step 1: Required Threshold**: Verifier specifies minimum income threshold (e.g. 5,000).
-2. **Step 2: Private Salary Input**: Applicant enters actual earnings (e.g. 5,000) locally into client witness.
-3. **Step 3: Salt Key Input**: Cryptographic salt key is entered to generate a unique commitment.
-4. **Step 4: Circuit Execution**: Compact circuit evaluates ssert(secretSalary >= requestedThreshold) inside ZK engine.
-5. **Step 5: Ledger Commitment**: Public ledger updates isVerified = true and records the salt commitment hash.
-6. **Step 6: Total Privacy Preserved**: Actual salary (5,000) remains completely secret on user machine.
-
----
-
-## 🚀 Local Development Setup
+## 🚀 Local Development & Setup
 
 ### 1. Clone Repository & Install Dependencies
+```bash
+git clone https://github.com/WorkshopDeRahul/Private-Salary-Verification-midnight.git
+cd Private-Salary-Verification-midnight
+npm install
+```
 
-added 354 packages, and audited 355 packages in 6m
+### 2. Compile Compact Smart Contract
+```bash
+npm run compile
+```
 
-59 packages are looking for funding
-  run `npm fund` for details
+### 3. Run Automated Unit Test Suite
+```bash
+npm test
+```
 
-7 vulnerabilities (5 moderate, 1 high, 1 critical)
+### 4. Build TypeScript & Production Assets
+```bash
+npm run build
+npm run build:frontend
+```
 
-To address issues that do not require attention, run:
-  npm audit fix
-
-To address all issues (including breaking changes), run:
-  npm audit fix --force
-
-Run `npm audit` for details.
-
-### 2. Compile Smart Contract
-
-
-### 3. Deploy to Local Docker Devnet
-
-
-### 4. Run Interactive CLI
-
-
-### 5. Run Automated Tests
-
-> dell@1.0.0 test
-> echo "Error: no test specified" && exit 1
-
-"Error: no test specified" 
-
-### 6. Start Local Frontend Dev Server
-
+### 5. Start Development Server
+```bash
+npm run dev
+```
 
 ---
 
 ## 🧪 Automated Test Suite
 
-Run the Vitest test suite to verify contract state parsing and circuit logic:
+The repository includes comprehensive Vitest unit tests covering contract managed artifacts, ZK constraint logic, Lace provider isolation, Preprod network enforcement, and fallback address handling.
 
+```bash
+npm test
+```
 
-> dell@1.0.0 test
-> echo "Error: no test specified" && exit 1
+### Verification Output:
+```text
+ RUN  v4.1.10
 
-"Error: no test specified" 
+ ✓ tests/salary-verification.test.ts (8 tests)
 
-**Expected Output:**
-
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Duration  624ms
+```
 
 ---
 
-## 📸 Platform Screenshots
+## 📸 Application Screenshots
 
-### 1. Landing Page
+### 1. Marketing Homepage & ZK Visualizer
 ![Landing Page](docs/screenshots/landing-page.png)
 
 ### 2. Salary Verification Wizard
@@ -182,50 +144,28 @@ Run the Vitest test suite to verify contract state parsing and circuit logic:
 
 ---
 
-## 🛠️ Technology Stack
+## 🗺️ Application Routes
 
-- **Smart Contract Language**: Compact 0.31.1 (contracts/private-salary-verification.compact)
-- **Blockchain Platform**: Midnight Network (Local Devnet / Testnet)
-- **Frontend Framework**: React 18 + Vite 6 + React Router
-- **Styling & UI**: Tailwind CSS + Lucide Icons
-- **ZK Proof Engine**: Midnight Proof Server (Docker container on port 6300)
-- **Wallet Connection**: Lace Wallet Extension (window.midnight.lace)
-- **Testing Framework**: Vitest 4.1.10
-- **CI/CD Pipeline**: GitHub Actions (.github/workflows/ci.yml)
-- **Production Hosting**: Netlify Continuous Deployment
-
----
-
-## 🏆 Submission Checklists
-
-### Level 1 Submission Checklist
-- [x] **Compact Smart Contract**: Defined ledger state and erifySalaryThreshold circuit.
-- [x] **Compiler Output**: Managed circuit artifacts generated in contracts/managed/private-salary-verification.
-- [x] **Local Deployment**: Successfully deployed to local Docker devnet (
-pm run setup -- --network undeployed).
-- [x] **Interactive CLI**: Menu-driven console script (src/cli.ts) for transactions and ledger queries.
-- [x] **Documentation**: Complete setup, compile, deploy, and privacy instructions in README.md.
-
-### Level 2 Submission Checklist
-- [x] **Lace Wallet Integration**: Wallet connection button and status pill (window.midnight.lace).
-- [x] **Frontend Application**: Multi-page React + Vite + Tailwind dApp with live state cards.
-- [x] **Privacy Proving Flow**: 5-step wizard with masked private salary input & ZK proof pipeline indicator.
-- [x] **Environment Configuration**: .env.example provided (VITE_NETWORK, VITE_CONTRACT_ADDRESS, VITE_PROOF_SERVER_URL).
-
-### Level 3 Submission Checklist
-- [x] **Automated Unit Tests**: Vitest suite covering ZK circuit constraint logic and state parsing.
-- [x] **CI/CD Integration**: GitHub Actions workflow (.github/workflows/ci.yml) for lint, test, build, and deployment status.
-- [x] **Production Polish**: Multi-section SPA with Landing Page, Salary Verification, Credential Vault, History, Privacy Model, and About pages.
-- [x] **Git History**: 16+ clean commits authored by Rahul Saha.
+| Route | Page Name | Description |
+| :--- | :--- | :--- |
+| **`/`** | **Home** | Marketing landing page with ZK pipeline diagram, process cards, and use cases. |
+| **`/dashboard`** | **System Dashboard** | Metrics, recent activity feed, contract specs, and Developer Wallet Diagnostics panel. |
+| **`/verify`** | **Salary Verification** | Step-by-step interactive ZK proof verification wizard. |
+| **`/credentials`** | **Credential Vault** | Management panel for employer-issued credentials and vault JSON export. |
+| **`/history`** | **Verification History** | Audit log table of on-chain verification records and commitment hashes. |
+| **`/privacy`** | **Privacy Model** | Technical breakdown of private witness inputs vs public ledger state. |
+| **`/about`** | **About & Specs** | System architecture, problem statement, and Midnight ZK technology overview. |
 
 ---
 
-## 🏆 Midnight Hackathon Submission Summary
+## 🔮 Future Roadmap
 
-**Private Salary Verification** demonstrates the power of Midnight's **Confidential Credentials** category. By leveraging Compact smart contracts and Zero-Knowledge proofs, applicants prove income eligibility to landlords and lenders without exposing their exact salary, W-2 tax forms, or bank account statements. Only the deterministic verification result (isVerified = true) and salt commitment hash are recorded on-chain, while raw financial witnesses remain strictly private to the user.
+1. **Employer Digital Signatures**: Integrate employer-signed ZK claims (e.g., HR cryptographic signatures) to certify income sources.
+2. **Multi-Currency Support**: Support real-time FX rate conversions for foreign income verification.
+3. **Reusable Re-verification Tokens**: Mint non-transferable Zero-Knowledge Credential Tokens (SBTs) on Midnight allowing users to reuse income proofs across multiple verifiers.
 
 ---
 
 ## 📜 License
 
-MIT License - Open Source for Midnight Community & Hackathon Participants.
+MIT License — Built for the Midnight Community & Hackathon.

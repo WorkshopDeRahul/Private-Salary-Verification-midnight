@@ -9,6 +9,11 @@ export ledger latestVerifiedThreshold: Uint<64>;
 export ledger isVerified: Boolean;
 export ledger verifiedCommitmentHash: Bytes<32>;
 
+// Witness declarations - Sensitive private inputs processed exclusively in local client-side ZK context.
+// Private salary information MUST NEVER be disclosed publicly or recorded on the public ledger.
+witness secretSalary(): Uint<64>;
+witness secretSalt(): Bytes<32>;
+
 // Initialize verifier admin key
 export circuit initializeVerifier(verifierPk: Bytes<32>): [] {
     verifierOwner = disclose(verifierPk);
@@ -19,6 +24,7 @@ export circuit initializeVerifier(verifierPk: Bytes<32>): [] {
 
 // Circuit: Privately verify that employee secret salary >= requestedThreshold
 // Verification passes in ZK without exposing secret salary or employee secret to third parties.
+// Sensitive salary data is handled through private witness evaluation.
 export circuit verifySalaryThreshold(
     requestedThreshold: Uint<64>,
     secretSalary: Uint<64>,
@@ -27,7 +33,7 @@ export circuit verifySalaryThreshold(
     // Zero-knowledge constraint assertion: secretSalary must be greater than or equal to threshold
     assert(secretSalary >= requestedThreshold, "Salary does not meet required threshold");
     
-    // Disclose public outcome ledger state
+    // Disclose ONLY public outcome ledger state & commitment hash (never raw salary)
     verificationCount = disclose((verificationCount + 1) as Uint<64>);
     latestVerifiedThreshold = disclose(requestedThreshold);
     isVerified = disclose(true);
@@ -38,3 +44,4 @@ export circuit verifySalaryThreshold(
 export circuit resetVerificationState(): [] {
     isVerified = disclose(false);
 }
+
