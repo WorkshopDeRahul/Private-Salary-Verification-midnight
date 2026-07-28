@@ -87,9 +87,10 @@ describe("Lace Wallet Integration & Preprod Network Hardening", () => {
         lace: {
           name: "lace",
           rdns: "io.lace.wallet",
-          enable: async () => ({
-            network: async () => "preprod",
-            state: async () => ({ address: "" }),
+          connect: async (net: string) => ({
+            getConnectionStatus: async () => "connected",
+            network: async () => net,
+            getUnshieldedAddress: async () => ({ unshieldedAddress: "" }),
           }),
         },
       },
@@ -110,9 +111,10 @@ describe("Lace Wallet Integration & Preprod Network Hardening", () => {
         lace: {
           name: "lace",
           rdns: "io.lace.wallet",
-          enable: async () => ({
-            network: async () => "preprod",
-            state: async () => ({ address: validAddr }),
+          connect: async (net: string) => ({
+            getConnectionStatus: async () => "connected",
+            network: async () => net,
+            getUnshieldedAddress: async () => ({ unshieldedAddress: validAddr }),
           }),
         },
       },
