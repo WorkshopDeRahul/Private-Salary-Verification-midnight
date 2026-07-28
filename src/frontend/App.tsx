@@ -21,8 +21,8 @@ export const MainContent: React.FC = () => {
   const { currentPath } = useRouter();
 
   // Lace Wallet & Network State
-  const [walletConnected, setWalletConnected] = useState<boolean>(true);
-  const [walletAddress, setWalletAddress] = useState<string>("0x444f33167a85a49ed3a197e2944742463bca0a98364570caa8f116c13cb91954");
+  const [walletConnected, setWalletConnected] = useState<boolean>(false);
+  const [walletAddress, setWalletAddress] = useState<string>("No Midnight account found in Lace");
   const [networkName, setNetworkName] = useState<string>("Midnight Preprod");
   const [contractAddress, setContractAddress] = useState<string>(DEFAULT_CONTRACT_ADDRESS);
   const [verificationCount, setVerificationCount] = useState<number>(3);
@@ -33,15 +33,16 @@ export const MainContent: React.FC = () => {
     providerRdns: "io.lace.wallet",
     apiVersion: "1.0.0",
     requestedNetwork: "preprod",
-    connectedNetwork: "Midnight Preprod (preprod)",
-    connectionStatus: "Connected",
-    walletAddress: "0x444f33167a85a49ed3a197e2944742463bca0a98364570caa8f116c13cb91954",
+    connectedNetwork: "Disconnected",
+    connectionStatus: "Disconnected",
+    walletAddress: "No Midnight account found in Lace",
     contractAddress: DEFAULT_CONTRACT_ADDRESS,
+    debugPanelVisible: true,
     steps: {
-      providerDetected: { status: true, reason: "Lace Wallet detected (RDNS: io.lace.wallet)" },
-      providerConnected: { status: true, reason: "Connected to Midnight Preprod Network" },
-      addressRetrieved: { status: true, reason: "Active address retrieved: 0x444f3316..." },
-      contractReachable: { status: true, reason: `Midnight Preprod contract verified at ${DEFAULT_CONTRACT_ADDRESS.substring(0, 10)}...` },
+      providerDetected: { status: false, reason: "Lace Wallet Required" },
+      providerConnected: { status: false, reason: "Waiting for wallet connection" },
+      addressRetrieved: { status: false, reason: "No account selected" },
+      contractReachable: { status: false, reason: `Midnight Preprod contract configured at ${DEFAULT_CONTRACT_ADDRESS.substring(0, 10)}...` },
     },
   });
 

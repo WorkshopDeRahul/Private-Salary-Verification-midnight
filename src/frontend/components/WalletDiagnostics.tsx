@@ -64,7 +64,7 @@ export const WalletDiagnostics: React.FC<WalletDiagnosticsProps> = ({
       </div>
 
       {/* Primary Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 text-xs font-mono">
         <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 space-y-1">
           <span className="text-slate-400 text-[10px] block uppercase">Provider Name</span>
           <span className="text-purple-300 font-bold">{diagnostics.providerName}</span>
@@ -72,6 +72,12 @@ export const WalletDiagnostics: React.FC<WalletDiagnosticsProps> = ({
         <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 space-y-1">
           <span className="text-slate-400 text-[10px] block uppercase">Provider RDNS</span>
           <span className="text-emerald-400 font-bold break-all">{diagnostics.providerRdns}</span>
+        </div>
+        <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 space-y-1">
+          <span className="text-slate-400 text-[10px] block uppercase">Wallet Connected</span>
+          <span className={`font-bold ${diagnostics.connectionStatus === "Connected" ? "text-emerald-400" : "text-rose-400"}`}>
+            {diagnostics.connectionStatus === "Connected" ? "YES (Connected)" : "NO (Disconnected)"}
+          </span>
         </div>
         <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 space-y-1">
           <span className="text-slate-400 text-[10px] block uppercase">API Version</span>
