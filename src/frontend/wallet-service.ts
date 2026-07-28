@@ -1,7 +1,7 @@
 /**
  * Wallet Service — Midnight Preprod & Strict Lace Wallet Integration
  * 
- * Performs clean connection lifecycle without storing stale remote API proxies in React state or localStorage.
+ * Performs immediate unshieldedAddress extraction after connect() succeeds to avoid stale proxy/locked errors.
  */
 
 export interface WalletDiagnosticState {
@@ -50,8 +50,7 @@ export function detectLaceProvider(): any | null {
 
 /**
  * Connect exclusively to Lace Wallet on Midnight Preprod network.
- * Immediately extracts required primitive data (address, status, network) and discards
- * proxy references to prevent 'Remote API with channel midnight-wallet was shutdown' errors.
+ * Immediately calls api.getUnshieldedAddress() right after connect() succeeds.
  */
 export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_ADDRESS): Promise<{
   success: boolean;
@@ -126,17 +125,32 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
     return { success: false, address: diag.walletAddress, network: "Disconnected", diagnostics: diag };
   }
 
-  // 1. Check connection status immediately
+  // Immediately retrieve unshieldedAddress after connect() succeeds
+  let addressResult: any = null;
   try {
-    if (typeof api.getConnectionStatus === "function") {
-      const connStatus = await api.getConnectionStatus();
-      console.log("[Wallet] getConnectionStatus success", connStatus);
+    if (typeof api.getUnshieldedAddress === "function") {
+      addressResult = await api.getUnshieldedAddress();
     }
+    console.log("raw address result", addressResult);
+    console.log("address result", addressResult);
+    console.log("address string", addressResult?.unshieldedAddress);
   } catch (error) {
-    console.error("[Wallet Error] getConnectionStatus error", error);
+    console.error("[Wallet Error] address retrieval error", error);
   }
 
-  // 2. Validate connected network
+  const address = addressResult?.unshieldedAddress;
+  console.log("[Wallet] address value", address);
+
+  if (!address || typeof address !== "string" || address.trim() === "" || address === "None") {
+    console.error("[Wallet Error] Valid unshieldedAddress not found in Lace account response");
+    diag.connectionStatus = "Error";
+    diag.walletAddress = "No Midnight account found in Lace";
+    diag.errorMessage = "No Midnight account found in Lace wallet.";
+    diag.steps.addressRetrieved = { status: false, reason: "No Midnight account found in Lace" };
+    return { success: false, address: diag.walletAddress, network: diag.connectedNetwork, diagnostics: diag };
+  }
+
+  // Network check
   let actualNetwork = targetNetwork;
   try {
     if (typeof api.network === "function") {
@@ -146,7 +160,7 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
     }
     console.log("[Wallet] network value", actualNetwork);
   } catch (error) {
-    console.error("[Wallet Error] network check error", error);
+    console.log("[Wallet] network check optional info", error);
   }
 
   const invalidNetworks = ["undeployed", "devnet", "local", "mainnet", "testnet", "preview", "unknown"];
@@ -160,37 +174,6 @@ export async function connectLaceWallet(contractAddr: string = DEFAULT_CONTRACT_
 
   diag.connectedNetwork = "Midnight Preprod (preprod)";
   diag.steps.providerConnected = { status: true, reason: "Connected to Midnight Preprod Network" };
-
-  // 3. Retrieve unshielded address from Midnight API (result.unshieldedAddress)
-  let result: any = null;
-  let address = "";
-  try {
-    if (typeof api.getUnshieldedAddress === "function") {
-      result = await api.getUnshieldedAddress();
-    } else {
-      result = await api.getUnshieldedAddress();
-    }
-    
-    console.log("address result", result);
-    console.log("address string", result?.unshieldedAddress);
-
-    address = result?.unshieldedAddress || (typeof result === "string" ? result : "");
-  } catch (error) {
-    console.error("[Wallet Error] address retrieval error", error);
-  }
-
-  console.log("[Wallet] address value", address);
-
-  if (!address || address.trim() === "" || address === "None") {
-    console.error("[Wallet Error] Valid unshieldedAddress not found in Lace account response");
-    diag.connectionStatus = "Error";
-    diag.walletAddress = "No Midnight account found in Lace";
-    diag.errorMessage = "No Midnight account found in Lace wallet.";
-    diag.steps.addressRetrieved = { status: false, reason: "No Midnight account found in Lace" };
-    return { success: false, address: diag.walletAddress, network: diag.connectedNetwork, diagnostics: diag };
-  }
-
-  // Address retrieval succeeded! Update state with primitive values.
   diag.walletAddress = address;
   diag.steps.addressRetrieved = { status: true, reason: `Active unshielded address retrieved: ${address.substring(0, 16)}...` };
   diag.steps.contractReachable = { status: true, reason: `Midnight Preprod contract verified at ${contractAddr.substring(0, 10)}...` };
